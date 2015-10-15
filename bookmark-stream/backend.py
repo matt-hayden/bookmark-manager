@@ -14,17 +14,13 @@ def create_backend(arg=None, **kwargs):
 	else:
 		con = sqlite.connect(':memory:', **kwargs)
 	with open('structure.sql') as fi:
-		statements = fi.read().split('\n\n')
+		statements = [ s+';' for s in fi.read().split(';') ]
 	info("Creating new sqlite database in {} statements".format(len(statements)) )
 	with closing(con.cursor()) as cur:
-		try:
-			for statement in statements:
-				debug("Executing {}".format(statement))
-				cur.execute(statement)
-		except sqlite.OperationalError as e:
-			error(e)
-		else:
-			con.commit()
+		for statement in statements:
+			debug("Executing {}".format(statement))
+			cur.execute(statement)
+	con.commit()
 	return con
 def open_backend(arg=None, **kwargs):
 	if not arg:
@@ -38,11 +34,10 @@ def open_backend(arg=None, **kwargs):
 		con = arg
 	return con
 #
-def get_all_channels(con):
-	uniques, dups = [], []
+def get_channel(con, arg):
 	with closing(con.cursor()) as cur:
-		query = cur.execute('SELECT absolute_uri, count(*) FROM channels GROUP BY absolute_uri;')
-		for address, count in query.fetchall(): # fetchmany():
-			(uniques if count == 1 else dups).append(address)
-	return uniques, dups
+		cur.execute('SELECT segment_id, absolute_uri, key FROM channels WHERE (?) in (segment_id, absolute_uri, title);', (arg,) )
+		#assert len(cur) == 1
+		[ (segment_id, uri, key) ] = cur.fetchall()
+	return (segment_id, uri, key)
 #

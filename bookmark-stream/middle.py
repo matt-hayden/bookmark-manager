@@ -5,11 +5,11 @@ import os, os.path
 
 import requests
 
-from backend_base import *
-from media import thumbnail
+from backend import *
 
 debug = info = warning = error = panic = print
 
+capture_root = 'capture'
 thumbnail_root = 'thumbnails'
 
 
@@ -25,38 +25,45 @@ def probe_uri(uri):
 		return False
 
 def check_channel(con, arg, ok=requests.codes.ok):
-	with closing(con.cursor()) as cur:
-		cur.execute('SELECT segment_id, absolute_uri, key FROM channels WHERE (?) in (segment_id, absolute_uri, title);', (arg,) )
-		#assert len(cur) == 1
-		[ (segment_id, uri, key) ] = cur.fetchall()
-		proto, _ = uri.split(':', 1)
-		sc = probe_uri(uri)
-		if sc:
-			cur.execute('INSERT INTO channel_status (segment_id, uri_status) VALUES (?,?);', (segment_id, sc) )
-		return sc == ok
+	segment_id, uri, key = get_channel(con, arg)
+	proto, _ = uri.split(':', 1)
+	sc = probe_uri(uri)
+	if sc:
+		with closing(con.cursor()) as cur:
+			cur.execute('INSERT INTO channel_status (segment_id, status) VALUES (?,?);', (segment_id, sc) )
+	return sc == ok
 #
-def make_thumbnails(con, arg, **kwargs):
-	with closing(con.cursor()) as cur:
-		cur.execute('SELECT segment_id, absolute_uri, key FROM valid_channels WHERE (?) in (segment_id, absolute_uri, title);', (arg,) )
-		#assert len(cur) == 1
-		[ (segment_id, uri, key) ] = cur.fetchall()
+def get_thumbnails(con, arg, count=6, **kwargs):
+	segment_id, uri, key = get_channel(con, arg)
 	now = datetime.now()
 	ds, ts = now.strftime('%Y%m%d'), now.strftime('%H%M')
-	thumbnail_directory = os.path.join(thumbnail_root, str(segment_id), ds)
-	if not os.path.isdir(thumbnail_directory):
-		os.makedirs(thumbnail_directory)
-		nthumbs = 0
-	else:
-		nthumbs = -len(os.listdir(thumbnail_directory))
-	if 'frames' not in kwargs:
-		kwargs['frames'] = 3
-	if 'output_file_pattern' not in kwargs:
-		kwargs['output_file_pattern'] = ts+'+%01d.JPEG'
-	if thumbnail(uri, **kwargs):
-		tfs = os.listdir(thumbnail_directory)
-		nthumbs += len(tfs)
-		if nthumbs:
-			with closing(con.cursor()) as cur:
-				cur.execute('INSERT INTO channel_status (segment_id, thumbnail_directory, thumbnail_filenames) VALUES (?,?,?);', (segment_id, thumbnail_directory, ';'.join(tfs)) )
-			con.commit()
-		return nthumbs
+	thumbnail_directory = os.path.join(thumbnail_root, str(segment_id), ds, ts)
+	#
+	command = [ 'thumbnail.bash', '-d', thumbnail_directory, '-n', str(count), uri ]
+	proc = subprocess.Popen(command, stdout=subprocess.PIPE)
+	out, _ = proc.communicate()
+	assert not proc.returncode
+	fns = eval( '['+''.join(out)+']' ) # quick form a list from output
+	#
+	if fns:
+		with closing(con.cursor()) as cur:
+			cur.execute('INSERT INTO channel_thumbnails (segment_id, thumbnail_directory, thumbnail_filenames) VALUES (?,?,?);', (segment_id, thumbnail_directory, ';'.join(fns)) )
+		con.commit()
+	return len(fns)
+def get_capture(con, arg, duration='4:00:00:00.000', **kwargs):
+	segment_id, uri, key = get_channel(con, arg)
+	now = datetime.now()
+	ds, ts = now.strftime('%Y%m%d'), now.strftime('%H%M')
+	capture_directory = os.path.join(capture_root, str(segment_id), ds, ts)
+	#
+	command = [ 'capture.bash', '-d', capture_directory, uri ]
+	proc = subprocess.Popen(command, stdout=subprocess.PIPE)
+	out, _ = proc.communicate()
+	assert not proc.returncode
+	fns = eval( '['+''.join(out)+']' ) # quick form a list from output
+	#
+	if fns:
+		with closing(con.cursor()) as cur:
+			cur.execute('INSERT INTO channel_captures (segment_id, capture_directory, capture_filenames) VALUES (?,?,?);', (segment_id, capture_directory, ';'.join(fns)) )
+		con.commit()
+	return len(fns)

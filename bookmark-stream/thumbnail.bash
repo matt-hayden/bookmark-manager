@@ -105,7 +105,7 @@ esac
 
 if thumbs "$uri" &> "$errors"
 then
-	[[ $quiet == no ]] || ls -mt --quoting-style=c "${output_dir}/${prefix}"*
+	[[ $quiet == no ]] || ls -mtr --quoting-style=c "${output_dir}/${prefix}"*
 	[[ $leave_log == yes ]] && [[ -s "$errors" ]] && gzip -cn "$errors" >> "${log_dest}.GZ"
 elif [[ -s "$errors" ]]
 then

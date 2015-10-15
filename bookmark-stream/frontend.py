@@ -4,7 +4,7 @@ import sqlite3 as sqlite
 
 import m3u8
 
-import backend
+import middle
 
 debug = info = warning = error = panic = print
 
@@ -31,9 +31,11 @@ def populate_channels(con, iterable):
 		[(old_n,)] = cur.fetchall()
 		syntax = '''INSERT INTO channels (absolute_uri, proto_options, title, duration, program_date_time, key) VALUES (?, ?, ?, ?, ?, ?);'''
 		for row in iterable:
-			with suppress(sqlite.IntegrityError):
+			try:
 				cur.execute(syntax, format_m3u8_entry(row))
-		##cur.executemany(syntax, ( format_m3u8_entry(row) for row in iterable ))
+				debug("{} added".format(row))
+			except sqlite.IntegrityError as e:
+				info("Duplicate uri ignored: {}".format(e))
 		cur.execute('select count(*) from channels;')
 		[(new_n,)] = cur.fetchall()
 	con.commit()
@@ -48,8 +50,3 @@ def import_playlist(con, filename):
 	return n
 
 
-if __name__ == '__main__':
-	import sys
-	con = backend.open_backend('test.sqlite')
-	for arg in sys.argv[1:]:
-		import_playlist(con, arg)
