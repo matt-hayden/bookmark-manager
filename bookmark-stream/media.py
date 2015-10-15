@@ -31,4 +31,4 @@ def thumbnail(src, output_file_pattern='{filepart}-%08d.PNG', frames=1):
 		command = [ 'ffmpeg', '-v', 'error', '-nostdin', '-i', src, '-frames:v', str(frames), '-f', 'image2', ofn ]
 	proc = subprocess.Popen(command)
 	_, _ = proc.communicate()
-	return not proc.return_code
+	return not proc.returncode

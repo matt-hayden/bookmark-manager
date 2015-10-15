@@ -6,7 +6,7 @@ import os, os.path
 import requests
 
 from backend_base import *
-from media import thumbnails
+from media import thumbnail
 
 debug = info = warning = error = panic = print
 
@@ -52,7 +52,7 @@ def make_thumbnails(con, arg, **kwargs):
 		kwargs['frames'] = 3
 	if 'output_file_pattern' not in kwargs:
 		kwargs['output_file_pattern'] = ts+'+%01d.JPEG'
-	if thumbnails(uri, **kwargs):
+	if thumbnail(uri, **kwargs):
 		tfs = os.listdir(thumbnail_directory)
 		nthumbs += len(tfs)
 		if nthumbs:
