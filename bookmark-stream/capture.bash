@@ -5,7 +5,7 @@ SCRIPT="${BASH_SOURCE[0]##*/}"
 prefix="${SCRIPT%.*}"
 
 : using executables : ${FFMPEG='ffmpeg -v info -nostdin'} ${FFPROBE='ffprobe -v info'}
-: using temporary files : ${log=`mktemp`} ${errors=`mktemp`}
+: using temporary files : ${errors=`mktemp`}
 
 
 function help() {
@@ -95,7 +95,7 @@ do
 		   "${file_dest}" &> "$errors"
 	then
 		$FFMPEG -i "${list_dest}" -r '1/600' -f image2 "${thumb_dest}" &>> "$errors"
-		[[ $quiet == no ]] || ls -1mQt "${output_dir}/${prefix}"*
+		[[ $quiet == no ]] || ls -mt --quoting-style=c "${output_dir}/${prefix}"*
 		[[ $leave_log == yes ]] && [[ -s "$errors" ]] && gzip -cn "$errors" >> "${log_dest}.GZ"
 	elif [[ -s "$errors" ]]
 	then
