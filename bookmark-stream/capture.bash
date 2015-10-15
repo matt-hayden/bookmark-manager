@@ -4,7 +4,7 @@ set -e
 SCRIPT="${BASH_SOURCE[0]##*/}"
 prefix="${SCRIPT%.*}"
 
-: using executables : ${FFMPEG=ffmpeg} ${FFPROBE=ffprobe}
+: using executables : ${FFMPEG='ffmpeg -v info -nostdin'} ${FFPROBE='ffprobe -v info'}
 : using temporary files : ${log=`mktemp`} ${errors=`mktemp`}
 
 
@@ -29,9 +29,15 @@ function die() {
 	exit -1
 }
 
-: defaults : ${retries=1} ${output_dir="capture-$$"} ${duration='4:00:00.000'}
+: defaults : ${retries=1} ${output_dir="${prefix}-$$"} ${duration='4:00:00.000'}
 
-while getopts ":d:D:L:r: -:" OPT
+case $- in
+	*x*)
+		leave_log=yes
+	;;
+esac
+
+while getopts ":d:D:Lp:qr: -:" OPT
 do
 	if [[ $OPT == '-' ]] # Long option
 	then
@@ -55,7 +61,13 @@ do
 			duration="$OPTARG"
 		;;
 		L|leave_log)
-			leave_log=1
+			leave_log=yes
+		;;
+		p|prefix)
+			prefix="$OPTARG"
+		;;
+		q|quiet)
+			quiet=yes
 		;;
 		r|retries)
 			retries="$OPTARG"
@@ -73,16 +85,20 @@ uri="$1"
 
 for r in `eval echo {1..$retries}`
 do
-	file_dest="${output_dir}/${prefix}-${r}-%04d.NUT"
-	list_dest="${output_dir}/${prefix}-${r}.ffconcat"
-	log_dest="${output_dir}/${prefix}-${r}.log"
-	error_dest="${output_dir}/${prefix}-${r}.errors"
-	if $FFMPEG -nostdin -v info -i "$uri" -to "${duration}" -c:v copy -flags +global_header \
+	list_dest="${output_dir}/${prefix}-${r}.FFCONCAT"
+	file_dest="${list_dest%.*}-%04d.NUT"
+	thumb_dest="${list_dest%.*}-%04d.JPEG"
+	log_dest="${list_dest}.log"
+	error_dest="${list_dest}.errors"
+	if $FFMPEG -i "$uri" -to "${duration}" -c:v copy -flags +global_header \
 		   -f segment -segment_atclocktime 1 -segment_time 600 -segment_list_type ffconcat -segment_list "${list_dest}" \
 		   "${file_dest}" &> "$errors"
 	then
-		((leave_log)) && mv -b "$errors" "${log_dest}"
-	else
-		mv -b "$errors" "${error_dest}"
+		$FFMPEG -i "${list_dest}" -r '1/600' -f image2 "${thumb_dest}" &>> "$errors"
+		[[ $quiet == no ]] || ls -1mQt "${output_dir}/${prefix}"*
+		[[ $leave_log == yes ]] && [[ -s "$errors" ]] && gzip -cn "$errors" >> "${log_dest}.GZ"
+	elif [[ -s "$errors" ]]
+	then
+		gzip -cn "$errors" >> "${error_dest}.GZ"
 	fi
 done
