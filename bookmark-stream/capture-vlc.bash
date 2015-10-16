@@ -4,7 +4,7 @@ set -e
 SCRIPT="${BASH_SOURCE[0]##*/}"
 prefix="${SCRIPT%.*}"
 
-: using executables : ${FFMPEG=ffmpeg} ${VLC="cvlc --repeat"}
+: using executables : ${FFMPEG=ffmpeg} ${VLC="cvlc --repeat --sout-keep --sout-all"}
 : using temporary files : ${errors=`mktemp`}
 
 
