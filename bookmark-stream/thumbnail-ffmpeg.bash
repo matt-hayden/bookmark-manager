@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT="${BASH_SOURCE[0]##*/}"
-prefix="${SCRIPT%.*}"
+prefix=thumbnails
 
 : using executables : ${FFMPEG='ffmpeg -v info -nostdin'} ${FFPROBE='ffprobe -v info'}
 : using temporary files : ${errors=`mktemp`}
@@ -29,7 +29,7 @@ function die() {
 	exit -1
 }
 
-: defaults : ${retries=1} ${output_dir="${prefix}-$$"} ${duration='4:00:00.000'}
+: defaults : ${output_dir="${prefix}-$$"}
 
 case $- in
 	*x*)
@@ -37,7 +37,7 @@ case $- in
 	;;
 esac
 
-while getopts ":d:D:Lp:qr: -:" OPT
+while getopts "a:d:n:p:q -:" OPT
 do
 	if [[ $OPT == '-' ]] # Long option
 	then
@@ -54,23 +54,21 @@ do
 		;;
 		h|help) help
 		;;
+		a|all)
+			count=1
+		;;
 		d|output_dir)
 			output_dir="$OPTARG"
 		;;
-		D|duration)
-			duration="$OPTARG"
-		;;
-		L|leave_log)
-			leave_log=yes
+		n|count)
+			count="$OPTARG"
+			$(( count + 0 ))
 		;;
 		p|prefix)
 			prefix="$OPTARG"
 		;;
 		q|quiet)
 			quiet=yes
-		;;
-		r|retries)
-			retries="$OPTARG"
 		;;
 		\?) usage # unrecognized option it a literal '?'
 		;;
@@ -84,21 +82,33 @@ uri="$1"
 shift
 [[ "$@" ]] && usage
 
-for r in `eval echo {1..$retries}`
-do
-	list_dest="${output_dir}/${prefix}-${r}.FFCONCAT"
-	file_dest="${list_dest%.*}-%04d.MKV"
-	thumb_dest="${list_dest%.*}-%04d.JPEG"
-	log_dest="${list_dest}.log"
-	error_dest="${list_dest}.errors"
-	if $FFMPEG -i "$uri" -to "${duration}" -c:v copy -flags +global_header \
-		   -f segment -segment_atclocktime 1 -segment_time 600 -segment_list_type ffconcat -segment_list "${list_dest}" \
-		   "${file_dest}" &> "$errors"
-	then
-		$FFMPEG -i "${list_dest}" -r '1/600' -f image2 "${thumb_dest}" &>> "$errors" &
-	else
-		[[ $leave_log == yes ]] && [[ -s "$errors" ]] && gzip -cn "$errors" >> "${log_dest}.gz"
-	fi
-	sleep 24
-done
-[[ $quiet == no ]] || ls -mtr --quoting-style=c "${output_dir}/${prefix}"*
+thumb_dest="${output_dir}/${prefix}-%04d.JPEG"
+log_dest="${thumbs_dest}.log"
+error_dest="${thumbs_dest}.errors"
+
+case $count in
+	0)
+		function thumbs() {
+			$FFMPEG -i "$1" -r '1/600' -f image2 "${thumb_dest}"
+		}
+	;;
+	1)
+		function thumbs() {
+			$FFMPEG -i "$1" -frames:v 1 -f image2 "${thumb_dest}"
+		}
+	;;
+	*)
+		function thumbs() {
+			$FFMPEG -i "$1" -frames:v $(( count + 1 )) -r '1/600' -f image2 "${thumb_dest}"
+		}
+	;;
+esac
+
+if thumbs "$uri" &> "$errors"
+then
+	[[ $quiet == no ]] || ls -mtr --quoting-style=c "${output_dir}/${prefix}"*
+	[[ $leave_log == yes ]] && [[ -s "$errors" ]] && gzip -cn "$errors" >> "${log_dest}.gz"
+elif [[ -s "$errors" ]]
+then
+	gzip -cn "$errors" >> "${error_dest}.gz"
+fi

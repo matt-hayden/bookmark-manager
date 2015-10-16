@@ -81,7 +81,8 @@ shift $((OPTIND-1))
 [[ -d "$output_dir" ]] || mkdir -p "$output_dir"
 
 uri="$1"
-[[ "$@" ]] || usage
+shift
+[[ "$@" ]] && usage
 
 for r in `eval echo {1..$retries}`
 do
