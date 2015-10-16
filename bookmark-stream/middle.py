@@ -43,7 +43,7 @@ def get_thumbnails(con, arg, count=6, **kwargs):
 	proc = subprocess.Popen(command, stdout=subprocess.PIPE)
 	out, _ = proc.communicate()
 	assert not proc.returncode
-	fns = eval( '['+''.join(out)+']' ) # quick form a list from output
+	fns = eval( '['+out+']' ) if out else [] # quick form a list from output
 	#
 	if fns:
 		with closing(con.cursor()) as cur:
@@ -60,7 +60,7 @@ def get_capture(con, arg, duration='4:00:00:00.000', **kwargs):
 	proc = subprocess.Popen(command, stdout=subprocess.PIPE)
 	out, _ = proc.communicate()
 	assert not proc.returncode
-	fns = eval( '['+''.join(out)+']' ) # quick form a list from output
+	fns = eval( '['+out+']' ) if out else [] # quick form a list from output
 	#
 	if fns:
 		with closing(con.cursor()) as cur:

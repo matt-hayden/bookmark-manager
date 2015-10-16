@@ -17,7 +17,7 @@ def format_m3u8_entry(row):
 		row = (segment.absolute_uri, segment.title, segment.duration, segment.program_date_time, segment.key)
 	absolute_uri, title, duration, program_date_time, key = row
 	proto, _ = absolute_uri.split(':', 1)
-	if proto.upper() in ['RTMP']:
+	if proto.upper() in ['RTMP']: ### TODO
 		proto_options = absolute_uri.split()
 		uri = proto_options.pop(0)
 	else:
