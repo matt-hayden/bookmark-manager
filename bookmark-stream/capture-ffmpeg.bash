@@ -96,7 +96,7 @@ do
 	then
 		$FFMPEG -i "${list_dest}" -r '1/600' -f image2 "${thumb_dest}" &>> "$errors" &
 	else
-		[[ $leave_log == yes ]] && [[ -s "$errors" ]] && gzip -cn "$errors" >> "${log_dest}.GZ"
+		[[ $leave_log == yes ]] && [[ -s "$errors" ]] && gzip -cn "$errors" >> "${log_dest}.gz"
 	fi
 	sleep 24
 done

@@ -4,7 +4,7 @@ set -e
 SCRIPT="${BASH_SOURCE[0]##*/}"
 prefix="${SCRIPT%.*}"
 
-: using executables : ${FFMPEG=ffmpeg} ${VLC="cvlc --repeat --sout-keep --sout-all"}
+: using executables : ${FFMPEG=ffmpeg} ${VLC="cvlc --sout-keep --sout-all"}
 : using temporary files : ${errors=`mktemp`}
 
 
@@ -89,12 +89,12 @@ do
 	thumb_dest="${file_dest%.*}-%04d.JPEG"
 	log_dest="${file_dest}.log"
 	error_dest="${file_dest}.errors"
-	#if $VLC --run-time "${duration}" --stop-time "${duration}" --sout file/mkv:"${file_dest}" &> "$errors"
-	if $VLC --sout file/mkv:"${file_dest}" "$uri" &> "$errors"
+	if $VLC --run-time "${duration}" --stop-time "${duration}" --sout file/mkv:"${file_dest}" "$uri" "vlc://quit" &> "$errors"
+	#if $VLC --sout file/mkv:"${file_dest}" "$uri" &> "$errors"
 	then
 		$FFMPEG -i "${file_dest}" -r '1/600' -f image2 "${thumb_dest}" &>> "$errors" &
 	else
-		[[ $leave_log == yes ]] && [[ -s "$errors" ]] && gzip -cn "$errors" >> "${log_dest}.GZ"
+		[[ $leave_log == yes ]] && [[ -s "$errors" ]] && gzip -cn "$errors" >> "${log_dest}.gz"
 	fi
 	sleep 24
 done
