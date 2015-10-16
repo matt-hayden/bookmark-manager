@@ -4,7 +4,7 @@ set -e
 SCRIPT="${BASH_SOURCE[0]##*/}"
 prefix="${SCRIPT%.*}"
 
-: using executables : ${FFMPEG='ffmpeg -v info -nostdin'} ${FFPROBE='ffprobe -v info'}
+: using executables : ${FFMPEG=ffmpeg} ${VLC="cvlc --repeat"}
 : using temporary files : ${errors=`mktemp`}
 
 
@@ -29,7 +29,7 @@ function die() {
 	exit -1
 }
 
-: defaults : ${retries=1} ${output_dir="${prefix}-$$"} ${duration='4:00:00.000'}
+: defaults : ${retries=1} ${output_dir="${prefix}-$$"} ${duration=14400}
 
 case $- in
 	*x*)
@@ -85,20 +85,17 @@ uri="$1"
 
 for r in `eval echo {1..$retries}`
 do
-	list_dest="${output_dir}/${prefix}-${r}.FFCONCAT"
-	file_dest="${list_dest%.*}-%04d.NUT"
-	thumb_dest="${list_dest%.*}-%04d.JPEG"
-	log_dest="${list_dest}.log"
-	error_dest="${list_dest}.errors"
-	if $FFMPEG -i "$uri" -to "${duration}" -c:v copy -flags +global_header \
-		   -f segment -segment_atclocktime 1 -segment_time 600 -segment_list_type ffconcat -segment_list "${list_dest}" \
-		   "${file_dest}" &> "$errors"
+	file_dest="${output_dir}/${prefix}-${r}.MKV"
+	thumb_dest="${file_dest%.*}-%04d.JPEG"
+	log_dest="${file_dest}.log"
+	error_dest="${file_dest}.errors"
+	#if $VLC --run-time "${duration}" --stop-time "${duration}" --sout file/mkv:"${file_dest}" &> "$errors"
+	if $VLC --sout file/mkv:"${file_dest}" "$uri" &> "$errors"
 	then
-		$FFMPEG -i "${list_dest}" -r '1/600' -f image2 "${thumb_dest}" &>> "$errors"
-		[[ $quiet == no ]] || ls -mtr --quoting-style=c "${output_dir}/${prefix}"*
+		$FFMPEG -i "${file_dest}" -r '1/600' -f image2 "${thumb_dest}" &>> "$errors" &
+	else
 		[[ $leave_log == yes ]] && [[ -s "$errors" ]] && gzip -cn "$errors" >> "${log_dest}.GZ"
-	elif [[ -s "$errors" ]]
-	then
-		gzip -cn "$errors" >> "${error_dest}.GZ"
 	fi
+	sleep 24
 done
+[[ $quiet == no ]] || ls -mtr --quoting-style=c "${output_dir}/${prefix}"*
