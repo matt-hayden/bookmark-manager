@@ -1,3 +1,6 @@
 [submodule "m3u8"]
 	path = m3u8
 	url = git@github.com:matt-hayden/m3u8.git
+[submodule "sqlite_wrap"]
+	path = sqlite_wrap
+	url = git@github.com:matt-hayden/Sqlite3-wrapper.git
